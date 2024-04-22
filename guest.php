@@ -523,7 +523,10 @@ class GuestLink
 
 }
 
-echo GuestLink::init();
+// prevent from been called in CLI, e.g. composer dump-autoload
+if (PHP_SAPI !== 'cli') {
+    echo GuestLink::init();
+}
 
 
 
