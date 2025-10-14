@@ -53,7 +53,8 @@ class ilObjBigBlueButtonGUI extends ilObjectPluginGUI
      */
     protected function afterConstructor(): void
     {
-        $this->tpl->addCss("./Customizing/global/plugins/Services/Repository/RepositoryObject/BigBlueButton/templates/bbb.css");
+        // $this->tpl->addCss("./public/Customizing/global/plugins/Services/Repository/RepositoryObject/BigBlueButton/templates/bbb.css");
+        $this->tpl->addCss($this->getPlugin()->getDirectory() . '/templates/bbb.css');
     }
 
     /**
@@ -89,9 +90,9 @@ class ilObjBigBlueButtonGUI extends ilObjectPluginGUI
             case "showContent":			// list all commands that need read permission here
                 //case "...":
                 //case "...":
-                    $this->checkPermission("read");
-                    $this->$cmd();
-                    break;
+                $this->checkPermission("read");
+                $this->$cmd();
+                break;
 
             default:
                 //nothing
@@ -166,7 +167,9 @@ class ilObjBigBlueButtonGUI extends ilObjectPluginGUI
     {
         global $ilCtrl;
 
-        include_once("Services/Form/classes/class.ilPropertyFormGUI.php");
+        include_once ILIAS_ABSOLUTE_PATH . "/components/ILIAS/Form/classes/class.ilPropertyFormGUI.php";
+
+
         $this->form = new ilPropertyFormGUI();
 
         // title
@@ -309,11 +312,10 @@ class ilObjBigBlueButtonGUI extends ilObjectPluginGUI
         $available_sessions = $BBBHelper->getMaximumSessionsAvailable();
         //$BBBHelper->getMeetings();
 
-        $client_js = new ilTemplate("./Customizing/global/plugins/Services/Repository/RepositoryObject/BigBlueButton/templates/client.js", true, true);
+        $client_js = new ilTemplate("../client.js", true, true, "public/Customizing/global/plugins/Services/Repository/RepositoryObject/BigBlueButton");
 
         if ($isModerator) {
-            $my_tpl = new ilTemplate("./Customizing/global/plugins/Services/Repository/RepositoryObject/BigBlueButton/templates/tpl.BigBlueButtonModeratorClient.html", true, true);
-
+            $my_tpl = new ilTemplate("../tpl.BigBlueButtonModeratorClient.html", true, true, "public/Customizing/global/plugins/Services/Repository/RepositoryObject/BigBlueButton");
             $my_tpl->setVariable("CMD_END_CLASS", "cmd[endClass]");
             $my_tpl->setVariable("END_CLASS", $this->txt('end_bbb_class'));
             $my_tpl->setVariable("FORMACTION", $this->ctrl->getFormAction($this));
@@ -331,12 +333,24 @@ class ilObjBigBlueButtonGUI extends ilObjectPluginGUI
             $my_tpl->setVariable("startClass", $this->txt("start_class"));
             $my_tpl->setVariable("endClass", $this->txt("end_class"));
             $my_tpl->setVariable("endClassComment", $this->txt("end_class_comment"));
-            if($this->object->isGuestGlabalAllowed() && $this->object->isGuestLinkAllowed()){
+
+            global $DIC;  // Get global ILIAS dependency injection container
+
+            // Log the values of guest access settings
+            $data = [
+                "Guest Global Allowed" => $this->object->isGuestGlabalAllowed(),
+                "Guest Link Allowed"   => $this->object->isGuestLinkAllowed(),
+            ];
+
+            $DIC->logger()->root()->dump($data); // Logs data in ILIAS 10
+
+            if ($this->object->isGuestGlabalAllowed() && $this->object->isGuestLinkAllowed()) {
+                $my_tpl->setCurrentBlock("guestlink_block");
                 $my_tpl->setVariable("GUEST_INVITE_INFO", $this->txt("guest_invite_info"));
                 $my_tpl->setVariable("GUEST_INVITE_URL", $BBBHelper->getInviteUrl());
-            }else{
-                $my_tpl->setVariable("HIDE_GUESTLINK", "hide");
+                $my_tpl->parseCurrentBlock();
             }
+
 
             if ($values["choose_recording"]){
                 $my_tpl->setVariable("recordings", $this->buildRecordingUI());
@@ -345,7 +359,7 @@ class ilObjBigBlueButtonGUI extends ilObjectPluginGUI
             }else{
                 $my_tpl->setVariable("CHOOSE_RECORDING_VISIBLE", "hidden");
 
-            }           
+            }
             $client_js->setVariable("hasMeetingRecordings", $this->has_meeting_recordings  && boolval($values["choose_recording"]) ? "true" : "false");
             $client_js->setCurrentBlock('moderator');
             $client_js->setVariable("DUMMY_VAL", 1);
@@ -354,8 +368,7 @@ class ilObjBigBlueButtonGUI extends ilObjectPluginGUI
 
             $bbbURL=$BBBHelper->joinURLModerator($this->object);
         } else {
-            $my_tpl = new ilTemplate("./Customizing/global/plugins/Services/Repository/RepositoryObject/BigBlueButton/templates/tpl.BigBlueButtonClient.html", true, true);
-
+            $my_tpl = new ilTemplate("../tpl.BigBlueButtonClient.html", true, true, "public/Customizing/global/plugins/Services/Repository/RepositoryObject/BigBlueButton");
             $my_tpl->setVariable("classNotStartedText", $this->txt("class_not_started_yet"));
 
             $bbbURL=$BBBHelper->joinURL($this->object);
@@ -385,22 +398,22 @@ class ilObjBigBlueButtonGUI extends ilObjectPluginGUI
         global $DIC;
         $BBBHelper=new ilBigBlueButtonProtocol($this->object);
         $table_template = new ilTemplate(
-                "tpl.BigBlueButtonRecordTable.html",
-                true,
-                true,
-                "Customizing/global/plugins/Services/Repository/RepositoryObject/BigBlueButton"
+            "tpl.BigBlueButtonRecordTable.html",
+            true,
+            true,
+            "public/Customizing/global/plugins/Services/Repository/RepositoryObject/BigBlueButton"
         );
         $table_content = [];
         $recordcount=0;
         $all_recordings=$BBBHelper->getRecordingsRaw()->recordings->recording;
-        
-        
+
+
         if ($all_recordings){
             foreach($all_recordings as $recording){
                 $table_row_template = new ilTemplate("tpl.BigBlueButtonRecordTableRow.html",
-                                true,
-                                true,
-                                "Customizing/global/plugins/Services/Repository/RepositoryObject/BigBlueButton");
+                    true,
+                    true,
+                    "public/Customizing/global/plugins/Services/Repository/RepositoryObject/BigBlueButton");
                 $table_row_template->setVariable("Date",date("d.m.Y H:i",  substr ($recording->startTime,0,10)));
                 $seconds = round(($recording->endTime - $recording->startTime)/1000);
                 $table_row_template->setVariable("Duration", $this->formatTimeDiff( $seconds ));
@@ -408,9 +421,9 @@ class ilObjBigBlueButtonGUI extends ilObjectPluginGUI
                 $table_links = [];
                 foreach($recording->playback->format as $format) {
                     $table_link_template = new ilTemplate("tpl.BigBlueButtonRecordTableLink.html",
-                                    true,
-                                    true,
-                                    "Customizing/global/plugins/Services/Repository/RepositoryObject/BigBlueButton");
+                        true,
+                        true,
+                        "public/Customizing/global/plugins/Services/Repository/RepositoryObject/BigBlueButton");
                     $table_link_template->setVariable("URL",$format->url);
                     if($format->type=="presentation" && $this->object->isDownloadAllowed() ){
                         $node = '<a href="'.$BBBHelper->getVideoDownloadStreamUrl($format->url).'" download>' .$this->txt("DownloadText") . '</a>';
@@ -422,12 +435,12 @@ class ilObjBigBlueButtonGUI extends ilObjectPluginGUI
                     $table_links[] = $table_link_template->get();
                 }
                 //Actions
-                
+
                 $actions = array(
                     $DIC->ui()->factory()->button()->shy($this->txt("deletelink_title"), $this->editLink($recording->recordID, true, true))
                 );
                 $isPublished = $recording->published->__toString() === 'true';
-                
+
                 if ($isPublished){
                     if ($this->object->isDownloadAllowed()){
                         $actions[] = $DIC->ui()->factory()->button()->shy(
@@ -436,10 +449,10 @@ class ilObjBigBlueButtonGUI extends ilObjectPluginGUI
                         );
                     }
                     // $actions[] = $DIC->ui()->factory()->button()->shy($this->txt("unpublish_link"), $this->editLink($recording->recordID, 0));
-                    // $actions[] = $DIC->ui()->factory()->button()->shy($this->txt("publish_link"), $this->editLink($recording->recordID, 1)); 
+                    // $actions[] = $DIC->ui()->factory()->button()->shy($this->txt("publish_link"), $this->editLink($recording->recordID, 1));
                 }else{
                     // $actions[] = $DIC->ui()->factory()->button()->shy($this->txt("publish_link"), $this->editLink($recording->recordID, 1));
-                                        
+
                 }
 
                 $actions_html = $DIC->ui()->renderer()->render($DIC->ui()->factory()->dropdown()->standard($actions)->withAriaLabel("Actions"));
@@ -457,9 +470,9 @@ class ilObjBigBlueButtonGUI extends ilObjectPluginGUI
         $table_template->setVariable("Date_Title", $this->txt("Date_Title"));
         $table_template->setVariable("Duration_Title", $this->txt("Duration_Title"));
         $table_template->setVariable("Link_Title", $this->txt("Link_Title"));
-        
+
         return $table_template->get();
-        
+
     }
 
     public function endClass()
@@ -474,7 +487,7 @@ class ilObjBigBlueButtonGUI extends ilObjectPluginGUI
 
         //$this->object->incSequence();
 
-        $my_tpl = new ilTemplate("./Customizing/global/plugins/Services/Repository/RepositoryObject/BigBlueButton/templates/tpl.BigBlueButtonModeratorMeetingEnded.html", true, true);
+        $my_tpl = new ilTemplate("../tpl.BigBlueButtonModeratorMeetingEnded.html", true, true, "public/Customizing/global/plugins/Services/Repository/RepositoryObject/BigBlueButton");
         $my_tpl->setVariable("classEnded", $this->txt("class_ended"));
         $tpl->setContent($my_tpl->get());
         $this->showContent();
@@ -492,7 +505,7 @@ class ilObjBigBlueButtonGUI extends ilObjectPluginGUI
 
         $BBBHelper->createMeeting($this->object, isset($_POST["recordmeeting"]));
 
-        $my_tpl = new ilTemplate("./Customizing/global/plugins/Services/Repository/RepositoryObject/BigBlueButton/templates/tpl.BigBlueButtonModeratorMeetingCreated.html", true, true);
+        $my_tpl = new ilTemplate("../tpl.BigBlueButtonModeratorMeetingCreated.html", true, true, "public/Customizing/global/plugins/Services/Repository/RepositoryObject/BigBlueButton");
 
         $bbbURL=$BBBHelper->joinURLModerator($this->object);
 
@@ -519,19 +532,19 @@ class ilObjBigBlueButtonGUI extends ilObjectPluginGUI
     }
 
     private function formatTimeDiff($seconds) {
-		$dtF = new \DateTime('@0');
+        $dtF = new \DateTime('@0');
         $dtT = new \DateTime("@$seconds");
         return $dtF->diff($dtT)->format( $this->txt("Date_Format") );
-	}
-    
+    }
+
     public function publish()
     {
         global $ilCtrl;
 
 
         $BBBHelper= new ilBigBlueButtonProtocol($this->object);
-         $recordID = filter_input(INPUT_GET, "recordID");
-         $publish = boolval(filter_input(INPUT_GET, "publish"));
+        $recordID = filter_input(INPUT_GET, "recordID");
+        $publish = boolval(filter_input(INPUT_GET, "publish"));
 
         $BBBHelper->publishRecordings($this->object,$recordID, $publish );
 
